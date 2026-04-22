@@ -1,0 +1,1289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#2a2a2e">
+<title>Daily Nutrient Tracker</title>
+<style>
+  :root {
+    --bg: #2a2a2e;
+    --card: #36363c;
+    --card-2: #3f3f46;
+    --ink: #f5f5f0;
+    --muted: #b0b0a8;
+    --subtle: #7e7e78;
+    --border: #4a4a52;
+    --border-strong: #5a5a62;
+    --progress-bg: #202024;
+    --danger: #ff2d55;
+    --danger-bg: rgba(255, 45, 85, 0.12);
+    --danger-text: #ff9db0;
+
+    /* Nutrient palette */
+    --n-fib-gen: #c4c4bd;     /* General — light grey */
+    --n-fib-gel: #ff9f40;     /* Gel-forming — orange */
+    --n-fib-bg: #ff3bd4;      /* Beta-glucan — hot pink */
+    --n-fib-ax: #2563eb;      /* Arabinoxylan — deep bright blue */
+    --n-fib-rs: #c77dff;      /* Resistant starch — purple */
+    --n-fib-pp: #5ac8fa;      /* Polyphenol-bound — light blue */
+    --n-iro: #ff2d55;         /* Iron — pink-red */
+    --n-b12: #ffe14a;         /* B12 — yellow */
+    --n-fol: #39ff88;         /* Folate — neon green */
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { overscroll-behavior-y: none; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+    padding: max(env(safe-area-inset-top), 1rem) max(env(safe-area-inset-right), 1rem) max(env(safe-area-inset-bottom), 1rem) max(env(safe-area-inset-left), 1rem);
+    font-size: 15px;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-bottom: 1.25rem;
+    padding-bottom: 0.9rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  h1 { font-size: 1.5rem; font-weight: 700; letter-spacing: -0.02em; }
+  .date { color: var(--muted); font-size: 0.85rem; margin-top: 0.2rem; }
+  .header-actions { display: flex; gap: 0.4rem; }
+
+  button {
+    font-family: inherit;
+    cursor: pointer;
+    border: 1px solid var(--border-strong);
+    background: var(--card);
+    color: var(--ink);
+    padding: 0.5rem 0.8rem;
+    border-radius: 6px;
+    font-size: 0.82rem;
+    font-weight: 500;
+    transition: all 0.15s;
+    min-height: 36px;
+  }
+
+  button:active { background: var(--card-2); transform: scale(0.97); }
+  button.primary { background: var(--n-fol); color: #0a0a0a; border-color: var(--n-fol); font-weight: 700; }
+  button.ghost { border-color: transparent; background: transparent; color: var(--muted); }
+
+  .tabs {
+    display: none;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 3px;
+    margin-bottom: 1rem;
+    gap: 3px;
+  }
+
+  .tab {
+    flex: 1;
+    padding: 0.55rem;
+    text-align: center;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: var(--muted);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab.active { background: var(--n-fol); color: #0a0a0a; }
+
+  @media (max-width: 768px) {
+    .tabs { display: flex; }
+    h1 { font-size: 1.3rem; }
+    body { padding: max(env(safe-area-inset-top), 0.75rem) 0.75rem max(env(safe-area-inset-bottom), 0.75rem) 0.75rem; }
+  }
+
+  /* Rails */
+  .rails-section-label {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    color: var(--subtle);
+    margin-bottom: 0.4rem;
+    padding-left: 0.2rem;
+  }
+
+  .rails {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+  }
+
+  .rails.other {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  @media (max-width: 768px) {
+    .rails { grid-template-columns: repeat(3, 1fr); gap: 0.4rem; }
+    .rails.other { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  @media (max-width: 420px) {
+    .rails { grid-template-columns: repeat(2, 1fr); }
+    .rails.other { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .rail {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 0.6rem 0.7rem;
+    position: relative;
+    --rail-color: var(--n-fib-gen);
+  }
+
+  .rail-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.4rem;
+    gap: 0.3rem;
+  }
+
+  .rail-name-wrap {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .rail-name {
+    font-size: 0.68rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 1.1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    color: var(--rail-color);
+  }
+
+  .rail-info {
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    border: 1px solid var(--border-strong);
+    background: transparent;
+    color: var(--subtle);
+    font-size: 0.6rem;
+    font-weight: 700;
+    padding: 0;
+    min-height: 14px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+  }
+
+  .rail-info:active { background: var(--card-2); }
+
+  .rail-value { font-size: 0.85rem; font-weight: 700; white-space: nowrap; }
+  .rail-value .target { color: var(--subtle); font-weight: 400; font-size: 0.72rem; }
+
+  .progress {
+    height: 5px;
+    background: var(--progress-bg);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+
+  .progress-bar {
+    height: 100%;
+    background: var(--rail-color);
+    transition: width 0.3s ease;
+    border-radius: 3px;
+  }
+
+  .rail.empty .progress-bar { background: var(--danger); opacity: 0.5; }
+
+  /* Gap banner */
+  .gap-banner {
+    background: var(--danger-bg);
+    border: 1px solid var(--danger);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    margin-bottom: 1.25rem;
+    font-size: 0.88rem;
+    color: var(--danger-text);
+    display: flex;
+    gap: 0.6rem;
+    align-items: flex-start;
+  }
+
+  .gap-banner.covered {
+    background: rgba(57, 255, 136, 0.12);
+    border-color: var(--n-fol);
+    color: var(--n-fol);
+  }
+
+  .gap-banner-icon { font-size: 1.1rem; flex-shrink: 0; font-weight: 700; color: var(--danger); }
+  .gap-banner.covered .gap-banner-icon { color: var(--n-fol); }
+  .gap-banner-body strong { display: block; margin-bottom: 0.15rem; font-size: 0.9rem; color: #ffc4cf; }
+  .gap-banner.covered .gap-banner-body strong { color: var(--n-fol); }
+
+  /* Layout */
+  .main-grid {
+    display: grid;
+    grid-template-columns: 1fr 340px;
+    gap: 1.25rem;
+  }
+
+  @media (max-width: 768px) {
+    .main-grid { grid-template-columns: 1fr; gap: 0; }
+    .panel.hidden-mobile { display: none; }
+  }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 1rem;
+  }
+
+  .panel-title { font-size: 1rem; font-weight: 700; margin-bottom: 0.15rem; }
+  .panel-sub { color: var(--muted); font-size: 0.8rem; margin-bottom: 0.9rem; }
+
+  .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 0.5rem;
+    margin-bottom: 0.9rem;
+  }
+
+  .panel-header .panel-title { margin-bottom: 0.1rem; }
+  .panel-header .panel-sub { margin-bottom: 0; }
+
+  .category { margin-bottom: 1rem; }
+  .category:last-child { margin-bottom: 0; }
+
+  .category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-bottom: 0.35rem;
+    margin-bottom: 0.45rem;
+    border-bottom: 1px solid var(--border);
+  }
+
+  .category-name {
+    font-size: 0.74rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--muted);
+  }
+
+  .category-count { font-size: 0.72rem; color: var(--subtle); }
+
+  .foods {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+    gap: 0.35rem;
+  }
+
+  @media (max-width: 480px) {
+    .foods { grid-template-columns: 1fr 1fr; }
+  }
+
+  .food {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.45rem;
+    padding: 0.5rem 0.55rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.12s;
+    user-select: none;
+    -webkit-user-select: none;
+    font-size: 0.85rem;
+    background: var(--card);
+    min-height: 44px;
+  }
+
+  .food:active { background: var(--card-2); }
+
+  .food.checked {
+    background: rgba(57, 255, 136, 0.15);
+    border-color: var(--n-fol);
+  }
+
+  .food-check {
+    width: 18px;
+    height: 18px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 4px;
+    flex-shrink: 0;
+    margin-top: 1px;
+    position: relative;
+    transition: all 0.12s;
+  }
+
+  .food.checked .food-check { background: var(--n-fol); border-color: var(--n-fol); }
+
+  .food.checked .food-check::after {
+    content: "";
+    position: absolute;
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 9px;
+    border: solid #0a0a0a;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+  }
+
+  .food-body { flex: 1; min-width: 0; }
+  .food-name { font-weight: 500; line-height: 1.3; }
+
+  .food-note {
+    font-size: 0.7rem;
+    color: var(--subtle);
+    font-style: italic;
+    margin-top: 0.1rem;
+  }
+
+  .food-tags { display: flex; gap: 0.2rem; flex-wrap: wrap; margin-top: 0.2rem; }
+
+  .tag {
+    font-size: 0.58rem;
+    padding: 1px 5px;
+    border-radius: 8px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    background: var(--card-2);
+    color: var(--muted);
+    border: 1px solid transparent;
+  }
+
+  .tag[data-nutrient="fib-gen"] { background: rgba(196, 196, 189, 0.12); color: var(--n-fib-gen); border-color: rgba(196, 196, 189, 0.4); }
+  .tag[data-nutrient="fib-gel"] { background: rgba(255, 159, 64, 0.15); color: var(--n-fib-gel); border-color: rgba(255, 159, 64, 0.4); }
+  .tag[data-nutrient="fib-bg"] { background: rgba(255, 59, 212, 0.15); color: var(--n-fib-bg); border-color: rgba(255, 59, 212, 0.4); }
+  .tag[data-nutrient="fib-ax"] { background: rgba(37, 99, 235, 0.18); color: #6b9dff; border-color: rgba(37, 99, 235, 0.5); }
+  .tag[data-nutrient="fib-rs"] { background: rgba(199, 125, 255, 0.15); color: var(--n-fib-rs); border-color: rgba(199, 125, 255, 0.4); }
+  .tag[data-nutrient="fib-pp"] { background: rgba(90, 200, 250, 0.15); color: var(--n-fib-pp); border-color: rgba(90, 200, 250, 0.4); }
+  .tag[data-nutrient="iro"] { background: rgba(255, 45, 85, 0.15); color: #ff6b85; border-color: rgba(255, 45, 85, 0.4); }
+  .tag[data-nutrient="b12"] { background: rgba(255, 225, 74, 0.15); color: var(--n-b12); border-color: rgba(255, 225, 74, 0.4); }
+  .tag[data-nutrient="fol"] { background: rgba(57, 255, 136, 0.15); color: var(--n-fol); border-color: rgba(57, 255, 136, 0.4); }
+
+  /* Grocery list */
+  .grocery-list { list-style: none; }
+
+  .grocery-item {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.55rem 0.3rem;
+    border-bottom: 1px solid var(--border);
+    cursor: pointer;
+    transition: background 0.12s;
+    min-height: 44px;
+  }
+
+  .grocery-item:active { background: var(--card-2); }
+  .grocery-item:last-child { border-bottom: none; }
+
+  .grocery-check {
+    width: 20px;
+    height: 20px;
+    border: 1.5px solid var(--border-strong);
+    border-radius: 4px;
+    flex-shrink: 0;
+    position: relative;
+    transition: all 0.12s;
+  }
+
+  .grocery-item.needed .grocery-check {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+  }
+
+  .grocery-item.needed .grocery-check::after {
+    content: "!";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -2px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--danger);
+    font-size: 0.85rem;
+  }
+
+  .grocery-item.stocked { opacity: 0.45; }
+  .grocery-item-body { flex: 1; min-width: 0; }
+  .grocery-item-name { font-size: 0.88rem; font-weight: 500; }
+  .grocery-item.stocked .grocery-item-name { color: var(--muted); }
+  .grocery-item-tags { display: flex; gap: 0.2rem; flex-wrap: wrap; margin-top: 0.2rem; }
+  .grocery-item-actions { display: flex; gap: 0.2rem; }
+
+  .item-btn {
+    background: transparent;
+    border: none;
+    color: var(--subtle);
+    font-size: 1.1rem;
+    padding: 0.3rem 0.4rem;
+    cursor: pointer;
+    border-radius: 4px;
+    min-height: 32px;
+    min-width: 32px;
+    line-height: 1;
+  }
+
+  .item-btn:active { background: var(--card-2); color: var(--ink); }
+
+  .status-legend {
+    display: flex;
+    gap: 0.8rem;
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-bottom: 0.5rem;
+    flex-wrap: wrap;
+  }
+
+  .status-legend-item { display: flex; align-items: center; gap: 0.3rem; }
+
+  .status-legend-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+    border: 1.5px solid var(--border-strong);
+    position: relative;
+  }
+
+  .status-legend-dot.needed {
+    background: var(--danger-bg);
+    border-color: var(--danger);
+  }
+
+  .status-legend-dot.needed::after {
+    content: "!";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -3px;
+    text-align: center;
+    font-weight: 700;
+    color: var(--danger);
+    font-size: 0.7rem;
+  }
+
+  /* Add form */
+  .add-form {
+    background: var(--card-2);
+    border: 1px dashed var(--border-strong);
+    border-radius: 6px;
+    padding: 0.75rem;
+    margin-bottom: 0.8rem;
+  }
+
+  .add-form.hidden { display: none; }
+
+  .add-form input[type="text"] {
+    width: 100%;
+    padding: 0.6rem 0.7rem;
+    border: 1px solid var(--border-strong);
+    border-radius: 5px;
+    font-size: 0.9rem;
+    font-family: inherit;
+    margin-bottom: 0.55rem;
+    background: var(--bg);
+    color: var(--ink);
+  }
+
+  .add-form input[type="text"]::placeholder { color: var(--subtle); }
+  .add-form input[type="text"]:focus { outline: none; border-color: var(--n-fol); }
+
+  .tag-picker-label {
+    font-size: 0.7rem;
+    color: var(--muted);
+    margin-bottom: 0.35rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    font-weight: 600;
+  }
+
+  .tag-picker { display: flex; gap: 0.3rem; flex-wrap: wrap; margin-bottom: 0.6rem; }
+
+  .tag-pick {
+    font-size: 0.66rem;
+    padding: 0.35rem 0.55rem;
+    border-radius: 12px;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    background: var(--bg);
+    border: 1px solid var(--border-strong);
+    cursor: pointer;
+    user-select: none;
+    color: var(--muted);
+    min-height: 32px;
+  }
+
+  .tag-pick.active[data-nutrient="fib-gen"] { background: rgba(196, 196, 189, 0.12); color: var(--n-fib-gen); border-color: var(--n-fib-gen); }
+  .tag-pick.active[data-nutrient="fib-gel"] { background: rgba(255, 159, 64, 0.15); color: var(--n-fib-gel); border-color: var(--n-fib-gel); }
+  .tag-pick.active[data-nutrient="fib-bg"] { background: rgba(255, 59, 212, 0.15); color: var(--n-fib-bg); border-color: var(--n-fib-bg); }
+  .tag-pick.active[data-nutrient="fib-ax"] { background: rgba(37, 99, 235, 0.18); color: #6b9dff; border-color: var(--n-fib-ax); }
+  .tag-pick.active[data-nutrient="fib-rs"] { background: rgba(199, 125, 255, 0.15); color: var(--n-fib-rs); border-color: var(--n-fib-rs); }
+  .tag-pick.active[data-nutrient="fib-pp"] { background: rgba(90, 200, 250, 0.15); color: var(--n-fib-pp); border-color: var(--n-fib-pp); }
+  .tag-pick.active[data-nutrient="iro"] { background: rgba(255, 45, 85, 0.15); color: #ff6b85; border-color: var(--n-iro); }
+  .tag-pick.active[data-nutrient="b12"] { background: rgba(255, 225, 74, 0.15); color: var(--n-b12); border-color: var(--n-b12); }
+  .tag-pick.active[data-nutrient="fol"] { background: rgba(57, 255, 136, 0.15); color: var(--n-fol); border-color: var(--n-fol); }
+
+  .add-form-actions { display: flex; gap: 0.4rem; }
+  .add-form-actions button { flex: 1; }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+    z-index: 100;
+    padding-top: max(env(safe-area-inset-top), 1rem);
+    padding-bottom: max(env(safe-area-inset-bottom), 1rem);
+  }
+
+  .modal-overlay.active { display: flex; }
+
+  .modal {
+    background: var(--card);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    padding: 1.2rem;
+    max-width: 440px;
+    width: 100%;
+    max-height: calc(100vh - 4rem);
+    overflow-y: auto;
+    position: relative;
+  }
+
+  .modal-close {
+    position: absolute;
+    top: 0.6rem;
+    right: 0.6rem;
+    background: transparent;
+    border: none;
+    color: var(--muted);
+    font-size: 1.3rem;
+    padding: 0.3rem 0.5rem;
+    cursor: pointer;
+    min-height: 36px;
+    line-height: 1;
+    border-radius: 6px;
+  }
+
+  .modal-close:active { background: var(--card-2); }
+
+  .modal-title {
+    font-size: 1rem;
+    font-weight: 700;
+    margin-bottom: 0.3rem;
+    padding-right: 2rem;
+    color: var(--modal-color, var(--ink));
+  }
+
+  .modal-subtitle {
+    font-size: 0.8rem;
+    color: var(--muted);
+    margin-bottom: 0.9rem;
+  }
+
+  .modal-section {
+    margin-bottom: 0.9rem;
+  }
+
+  .modal-section:last-child { margin-bottom: 0; }
+
+  .modal-section-label {
+    font-size: 0.7rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--subtle);
+    margin-bottom: 0.35rem;
+  }
+
+  .modal-section-body {
+    font-size: 0.88rem;
+    line-height: 1.5;
+    color: var(--ink);
+  }
+
+  .modal-foods {
+    display: flex;
+    gap: 0.3rem;
+    flex-wrap: wrap;
+  }
+
+  .modal-food {
+    font-size: 0.78rem;
+    padding: 0.25rem 0.55rem;
+    background: var(--card-2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    color: var(--ink);
+  }
+
+  @media print {
+    :root {
+      --bg: white;
+      --card: white;
+      --card-2: #f5f5f0;
+      --ink: #1a1a1a;
+      --muted: #555;
+      --subtle: #888;
+      --border: #ccc;
+      --border-strong: #999;
+      --progress-bg: #eee;
+      --danger-bg: #fee;
+    }
+    body { background: white; color: #1a1a1a; padding: 0.5in; font-size: 10pt; }
+    .header-actions, .tabs, .add-form, .item-btn, .rail-info, .modal-overlay { display: none !important; }
+    .panel, .rail { border: 1px solid #ccc; break-inside: avoid; background: white; }
+    .main-grid { grid-template-columns: 1fr 1fr; }
+    .panel.hidden-mobile { display: block !important; }
+    .foods { grid-template-columns: repeat(2, 1fr); }
+    .food, .grocery-item { background: white; }
+    .tag { background: #f0ede3; color: #555; border-color: transparent; }
+  }
+</style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div>
+        <h1>Daily Nutrient Tracker</h1>
+        <div class="date" id="date"></div>
+      </div>
+      <div class="header-actions">
+        <button class="ghost" onclick="resetDay()">Reset</button>
+        <button onclick="window.print()">Print</button>
+      </div>
+    </header>
+
+    <div class="rails-section-label">Fibre types</div>
+    <div class="rails" id="rails-fibre"></div>
+
+    <div class="rails-section-label">Other nutrients</div>
+    <div class="rails other" id="rails-other"></div>
+
+    <div id="gap-banner"></div>
+
+    <div class="tabs">
+      <div class="tab active" data-tab="foods" onclick="switchTab('foods')">Today's foods</div>
+      <div class="tab" data-tab="grocery" onclick="switchTab('grocery')">Grocery list</div>
+    </div>
+
+    <div class="main-grid">
+      <div class="panel" id="foods-panel">
+        <div class="panel-title">Today's foods</div>
+        <div class="panel-sub">Tap foods you've eaten today. Progress resets at midnight.</div>
+        <div id="food-categories"></div>
+      </div>
+
+      <aside class="panel hidden-mobile" id="grocery-panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Grocery list</div>
+            <div class="panel-sub">Tap to mark "need to buy" / stocked.</div>
+          </div>
+          <button onclick="toggleAddForm()">+ Add</button>
+        </div>
+
+        <div class="add-form hidden" id="add-form">
+          <input type="text" id="new-item-name" placeholder="Food name (e.g., walnuts)" autocomplete="off">
+          <div class="tag-picker-label">Tags (optional)</div>
+          <div class="tag-picker" id="tag-picker"></div>
+          <div class="add-form-actions">
+            <button onclick="cancelAdd()">Cancel</button>
+            <button class="primary" onclick="addItem()">Add</button>
+          </div>
+        </div>
+
+        <div class="status-legend">
+          <div class="status-legend-item"><span class="status-legend-dot needed"></span> Need to buy</div>
+          <div class="status-legend-item"><span class="status-legend-dot"></span> Stocked</div>
+        </div>
+
+        <ul class="grocery-list" id="grocery-list"></ul>
+      </aside>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="modal-overlay" onclick="closeModalIfOverlay(event)">
+    <div class="modal" id="modal">
+      <button class="modal-close" onclick="closeModal()">×</button>
+      <div class="modal-title" id="modal-title"></div>
+      <div class="modal-subtitle" id="modal-subtitle"></div>
+      <div id="modal-content"></div>
+    </div>
+  </div>
+
+<script>
+  // Nutrient keys: fib-gen, fib-gel, fib-bg, fib-ax, fib-rs, fib-pp, iro, b12, fol
+  const NUTRIENTS = [
+    {
+      key: 'fib-gen', label: 'General fibre', short: 'General', target: 4, group: 'fibre',
+      info: {
+        what: 'Mixed insoluble/soluble fibre from fruits, vegetables, and bran. Adds bulk, speeds transit, feeds gut bacteria broadly.',
+        why: 'Foundational fibre — the baseline your gut runs on daily.',
+        foods: ['Raspberries', 'Apples', 'Kale', 'Brussels sprouts', 'Avocado', 'Popcorn', 'Fibre 1', 'Mango', 'Almonds', 'Dried apricot']
+      }
+    },
+    {
+      key: 'fib-gel', label: 'Gel-forming', short: 'Gel', target: 1, group: 'fibre',
+      info: {
+        what: 'Soluble viscous fibre (mucilage) that forms a gel in water. Slows digestion, blunts blood sugar spikes, balances fermentation.',
+        why: 'You\'re heavy on fermentable prebiotics — this is the counterweight that reduces bloating and smooths things out.',
+        foods: ['Chia seeds', 'Ground flax', 'Psyllium husk']
+      }
+    },
+    {
+      key: 'fib-bg', label: 'Beta-glucan', short: 'β-glucan', target: 1, group: 'fibre',
+      info: {
+        what: 'A specific soluble fibre found mainly in oats and barley. Clinically proven to lower LDL cholesterol and blood sugar.',
+        why: 'Health Canada target is 3g/day. Roughly ¾ cup dry rolled oats gets you there.',
+        foods: ['Rolled oats', 'Barley', 'Steel-cut oats']
+      }
+    },
+    {
+      key: 'fib-ax', label: 'Arabinoxylan', short: 'AX', target: 1, group: 'fibre',
+      info: {
+        what: 'The main soluble fibre in whole grain wheat, rye, and sourdough. Ferments slowly and broadly supports gut bacteria.',
+        why: 'Easy to cover through bread, crackers, or whole grain flour. Skipped if you eat mostly refined grains.',
+        foods: ['Whole grain crackers', 'Whole grain flour (bagels)', 'Rye bread', 'Sourdough']
+      }
+    },
+    {
+      key: 'fib-rs', label: 'Resistant starch', short: 'RS', target: 1, group: 'fibre',
+      info: {
+        what: 'Starch that resists digestion and ferments in the colon. Produces butyrate — the main fuel for colon cells.',
+        why: 'Biggest butyrate producer. Cooked-then-cooled starches form more RS than fresh-cooked.',
+        foods: ['Lentils', 'Kidney beans', 'Chickpeas', 'Cooled potato', 'Cooled sushi rice', 'Green peas', 'Green bananas']
+      }
+    },
+    {
+      key: 'fib-pp', label: 'Polyphenol-bound', short: 'Polyphenol', target: 2, group: 'fibre',
+      info: {
+        what: 'Fibre that comes packaged with polyphenols (antioxidants). Double duty: feeds bacteria + delivers protective plant compounds.',
+        why: 'Polyphenols reach the colon attached to fibre, which is why whole fruit beats juice for microbiome health.',
+        foods: ['Raspberries', 'Blueberries', 'Apples', 'Dark chocolate 70%+', 'Matcha', 'Pomegranate', 'Herbs/spices']
+      }
+    },
+    {
+      key: 'iro', label: 'Iron', short: 'Iron', target: 3, group: 'other',
+      info: {
+        what: 'Essential mineral for oxygen transport, energy, and cognition. Premenopausal women need ~18mg/day (vs 8mg for men).',
+        why: 'Heme iron (animal) absorbs better than non-heme (plant). Vitamin C boosts non-heme absorption; coffee/tea blocks it.',
+        foods: ['Steak', 'Sardines', 'Lentils', 'Spinach', 'Pumpkin seeds', 'Dark chocolate', 'Ground flax', 'Dried apricot']
+      }
+    },
+    {
+      key: 'b12', label: 'B12', short: 'B12', target: 2, group: 'other',
+      info: {
+        what: 'Only found naturally in animal foods (or fortified). Essential for nerves, red blood cells, and energy.',
+        why: 'Almost impossible to get from plants alone. Your skyr, fish, and meat have you well covered.',
+        foods: ['Salmon', 'Tuna', 'Trout', 'Steak', 'Skyr', 'Cottage cheese', 'Sardines', 'Nutritional yeast (fortified)']
+      }
+    },
+    {
+      key: 'fol', label: 'Folate', short: 'Folate', target: 3, group: 'other',
+      info: {
+        what: 'B9 vitamin, critical for DNA synthesis and red blood cell formation. Folate = natural form in food; folic acid = synthetic form in supplements and fortified grains.',
+        why: 'Leafy greens and legumes are the richest natural sources. Canadian flour is fortified with folic acid since 1998.',
+        foods: ['Lentils', 'Kidney beans', 'Chickpeas', 'Spinach', 'Kale', 'Brussels sprouts', 'Avocado', 'Mango', 'Nutritional yeast']
+      }
+    },
+  ];
+
+  const NUTRIENT_MAP = Object.fromEntries(NUTRIENTS.map(n => [n.key, n]));
+
+  // Each food has a list of nutrient keys it contributes to.
+  // Optional `note` field shows subtle italic text (for polyphenols, probiotics, etc. that aren't in the rail system).
+  const FOODS = [
+    // PROTEINS (not tracked as rails — MFP covers protein — but still here for the checklist)
+    { cat: 'Proteins', name: 'Salmon', tags: ['b12'], note: 'omega-3' },
+    { cat: 'Proteins', name: 'Tuna (nigiri)', tags: ['b12'], note: 'omega-3' },
+    { cat: 'Proteins', name: 'Trout', tags: ['b12'], note: 'omega-3' },
+    { cat: 'Proteins', name: 'Shrimp', tags: ['b12'] },
+    { cat: 'Proteins', name: 'Steak', tags: ['iro', 'b12'] },
+    { cat: 'Proteins', name: 'Chicken', tags: [] },
+    { cat: 'Proteins', name: 'Egg whites', tags: ['b12'] },
+    { cat: 'Proteins', name: 'Sardines', tags: ['b12', 'iro'], note: 'omega-3' },
+
+    // DAIRY
+    { cat: 'Dairy', name: 'Skyr', tags: ['b12'], note: 'probiotics' },
+    { cat: 'Dairy', name: 'Cottage cheese', tags: ['b12'] },
+    { cat: 'Dairy', name: 'Protein milk', tags: ['b12'] },
+
+    // SEEDS & NUTS
+    { cat: 'Seeds & Nuts', name: 'Chia seeds', tags: ['fib-gel'], note: 'omega-3 ALA' },
+    { cat: 'Seeds & Nuts', name: 'Ground flax', tags: ['fib-gel', 'iro'], note: 'omega-3 ALA, lignans' },
+    { cat: 'Seeds & Nuts', name: 'Walnuts', tags: ['fib-gen'], note: 'omega-3 ALA' },
+    { cat: 'Seeds & Nuts', name: 'Pumpkin seeds', tags: ['iro', 'fib-gen'] },
+    { cat: 'Seeds & Nuts', name: 'Almonds', tags: ['fib-gen', 'iro'] },
+    { cat: 'Seeds & Nuts', name: 'Cashews', tags: ['iro', 'fib-gen'] },
+    { cat: 'Seeds & Nuts', name: 'PB2 / peanut butter', tags: ['fib-gen', 'fol'] },
+
+    // GRAINS
+    { cat: 'Grains', name: 'Rolled oats', tags: ['fib-bg', 'iro'] },
+    { cat: 'Grains', name: 'Popcorn', tags: ['fib-gen'] },
+    { cat: 'Grains', name: 'Whole grain crackers', tags: ['fib-ax'] },
+    { cat: 'Grains', name: 'Whole grain flour (bagels)', tags: ['fib-ax'] },
+    { cat: 'Grains', name: 'Sushi rice (cooled)', tags: ['fib-rs'] },
+    { cat: 'Grains', name: 'Fibre 1', tags: ['fib-gen'], note: 'fortified' },
+
+    // LEGUMES
+    { cat: 'Legumes', name: 'Lentils', tags: ['fib-rs', 'iro', 'fol'] },
+    { cat: 'Legumes', name: 'Red / white kidney beans', tags: ['fib-rs', 'iro', 'fol'] },
+    { cat: 'Legumes', name: 'Chickpeas', tags: ['fib-rs', 'iro', 'fol'] },
+
+    // VEGETABLES
+    { cat: 'Vegetables', name: 'Kale', tags: ['fib-gen', 'iro', 'fol'] },
+    { cat: 'Vegetables', name: 'Brussels sprouts', tags: ['fib-gen', 'fol'] },
+    { cat: 'Vegetables', name: 'Kalettes', tags: ['fib-gen', 'fol'] },
+    { cat: 'Vegetables', name: 'Spinach', tags: ['iro', 'fol'] },
+    { cat: 'Vegetables', name: 'Green peas', tags: ['fib-rs', 'fol'] },
+    { cat: 'Vegetables', name: 'Avocado', tags: ['fib-gen', 'fol'] },
+    { cat: 'Vegetables', name: 'Onion / garlic', tags: ['fib-gen'] },
+    { cat: 'Vegetables', name: 'Yam', tags: ['fib-gen'] },
+    { cat: 'Vegetables', name: 'Cooled potato', tags: ['fib-rs'] },
+    { cat: 'Vegetables', name: 'Seaweed', tags: ['fib-gen', 'iro', 'b12'] },
+
+    // FRUITS
+    { cat: 'Fruits', name: 'Raspberries', tags: ['fib-pp'] },
+    { cat: 'Fruits', name: 'Blueberries', tags: ['fib-pp'] },
+    { cat: 'Fruits', name: 'Apples', tags: ['fib-pp'] },
+    { cat: 'Fruits', name: 'Mango', tags: ['fib-gen', 'fol'] },
+    { cat: 'Fruits', name: 'Honeydew', tags: ['fol'] },
+    { cat: 'Fruits', name: 'Dried apricot', tags: ['fib-gen', 'iro'] },
+
+    // OTHER
+    { cat: 'Other', name: 'Kombucha', tags: [], note: 'probiotics' },
+    { cat: 'Other', name: 'Nutritional yeast', tags: ['b12', 'fol'] },
+    { cat: 'Other', name: 'Matcha', tags: ['fib-pp'], note: 'polyphenols (EGCG)' },
+    { cat: 'Other', name: 'Dark chocolate 70%+', tags: ['fib-pp', 'iro'] },
+  ];
+
+  const DEFAULT_GROCERY = [
+    { name: 'Skyr', tags: ['b12'], needed: false },
+    { name: 'Cottage cheese', tags: ['b12'], needed: false },
+    { name: 'Protein milk', tags: ['b12'], needed: false },
+    { name: 'Salmon', tags: ['b12'], needed: false },
+    { name: 'Trout', tags: ['b12'], needed: false },
+    { name: 'Steak', tags: ['iro', 'b12'], needed: false },
+    { name: 'Chicken', tags: [], needed: false },
+    { name: 'Shrimp', tags: ['b12'], needed: false },
+    { name: 'Egg whites', tags: ['b12'], needed: false },
+    { name: 'Rolled oats', tags: ['fib-bg', 'iro'], needed: false },
+    { name: 'Chia seeds', tags: ['fib-gel'], needed: false },
+    { name: 'Ground flax', tags: ['fib-gel', 'iro'], needed: false },
+    { name: 'Almonds', tags: ['fib-gen', 'iro'], needed: false },
+    { name: 'Cashews', tags: ['iro', 'fib-gen'], needed: false },
+    { name: 'PB2', tags: ['fib-gen'], needed: false },
+    { name: 'Whole grain flour', tags: ['fib-ax'], needed: false },
+    { name: 'Whole grain crackers', tags: ['fib-ax'], needed: false },
+    { name: 'Popcorn', tags: ['fib-gen'], needed: false },
+    { name: 'Sushi rice', tags: ['fib-rs'], needed: false },
+    { name: 'Fibre 1', tags: ['fib-gen'], needed: false },
+    { name: 'Lentils', tags: ['fib-rs', 'iro', 'fol'], needed: false },
+    { name: 'Kidney beans', tags: ['fib-rs', 'iro', 'fol'], needed: false },
+    { name: 'Kale', tags: ['fib-gen', 'iro', 'fol'], needed: false },
+    { name: 'Brussels sprouts', tags: ['fib-gen', 'fol'], needed: false },
+    { name: 'Kalettes', tags: ['fib-gen', 'fol'], needed: false },
+    { name: 'Green peas', tags: ['fib-rs', 'fol'], needed: false },
+    { name: 'Avocado', tags: ['fib-gen', 'fol'], needed: false },
+    { name: 'Onion', tags: ['fib-gen'], needed: false },
+    { name: 'Garlic', tags: ['fib-gen'], needed: false },
+    { name: 'Cooled potato', tags: ['fib-rs'], needed: false },
+    { name: 'Yam', tags: ['fib-gen'], needed: false },
+    { name: 'Seaweed', tags: ['fib-gen', 'iro', 'b12'], needed: false },
+    { name: 'Raspberries', tags: ['fib-pp'], needed: false },
+    { name: 'Blueberries', tags: ['fib-pp'], needed: false },
+    { name: 'Apples', tags: ['fib-pp'], needed: false },
+    { name: 'Mango', tags: ['fib-gen', 'fol'], needed: false },
+    { name: 'Honeydew', tags: ['fol'], needed: false },
+    { name: 'Dried apricot', tags: ['fib-gen', 'iro'], needed: false },
+    { name: 'Kombucha', tags: [], needed: false },
+    { name: 'Matcha', tags: ['fib-pp'], needed: false },
+    { name: 'Dark chocolate 70%+', tags: ['fib-pp', 'iro'], needed: false },
+    { name: 'Nutritional yeast', tags: ['b12', 'fol'], needed: false },
+  ];
+
+  let state = loadState();
+  let addFormTags = new Set();
+
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+  }
+
+  function loadState() {
+    try {
+      const raw = JSON.parse(localStorage.getItem('nutrientTrackerV3') || 'null');
+      if (!raw) {
+        return { day: todayKey(), checked: {}, grocery: JSON.parse(JSON.stringify(DEFAULT_GROCERY)) };
+      }
+      const checked = raw.day === todayKey() ? (raw.checked || {}) : {};
+      const grocery = raw.grocery && raw.grocery.length ? raw.grocery : JSON.parse(JSON.stringify(DEFAULT_GROCERY));
+      return { day: todayKey(), checked, grocery };
+    } catch {
+      return { day: todayKey(), checked: {}, grocery: JSON.parse(JSON.stringify(DEFAULT_GROCERY)) };
+    }
+  }
+
+  function saveState() {
+    try { localStorage.setItem('nutrientTrackerV3', JSON.stringify(state)); } catch {}
+  }
+
+  function resetDay() {
+    if (!confirm("Reset today's checked foods?")) return;
+    state.checked = {};
+    saveState();
+    render();
+  }
+
+  function switchTab(tab) {
+    document.querySelectorAll('.tab').forEach(el => el.classList.toggle('active', el.dataset.tab === tab));
+    document.getElementById('foods-panel').classList.toggle('hidden-mobile', tab !== 'foods');
+    document.getElementById('grocery-panel').classList.toggle('hidden-mobile', tab !== 'grocery');
+  }
+
+  function getCheckedFoods() {
+    return FOODS.filter(f => state.checked[f.name]);
+  }
+
+  function countNutrient(key) {
+    return getCheckedFoods().filter(f => f.tags.includes(key)).length;
+  }
+
+  function render() {
+    document.getElementById('date').textContent = new Date().toLocaleDateString('en-CA', {
+      weekday: 'long', month: 'long', day: 'numeric'
+    });
+    renderRails();
+    renderGapBanner();
+    renderFoods();
+    renderGrocery();
+  }
+
+  function railColor(key) {
+    return `var(--n-${key.replace('fib-', 'fib-')})`;
+  }
+
+  function renderRails() {
+    const fibreEl = document.getElementById('rails-fibre');
+    const otherEl = document.getElementById('rails-other');
+    fibreEl.innerHTML = '';
+    otherEl.innerHTML = '';
+
+    for (const n of NUTRIENTS) {
+      const current = countNutrient(n.key);
+      const pct = Math.min(100, (current / n.target) * 100);
+      const emptyClass = current === 0 ? 'empty' : '';
+      const colorVar = `var(--n-${n.key})`;
+
+      const rail = document.createElement('div');
+      rail.className = `rail ${emptyClass}`;
+      rail.style.setProperty('--rail-color', colorVar);
+      rail.innerHTML = `
+        <div class="rail-header">
+          <div class="rail-name-wrap">
+            <span class="rail-name">${n.short}</span>
+            <button class="rail-info" data-info="${n.key}" aria-label="Info about ${n.label}">?</button>
+          </div>
+          <span class="rail-value">${current}<span class="target"> / ${n.target}</span></span>
+        </div>
+        <div class="progress"><div class="progress-bar" style="width: ${pct}%"></div></div>
+      `;
+      if (n.group === 'fibre') fibreEl.appendChild(rail);
+      else otherEl.appendChild(rail);
+    }
+
+    // Attach info button handlers
+    document.querySelectorAll('.rail-info').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openNutrientModal(btn.dataset.info);
+      });
+    });
+  }
+
+  function renderGapBanner() {
+    const el = document.getElementById('gap-banner');
+    const underTarget = NUTRIENTS.filter(n => countNutrient(n.key) < n.target);
+
+    if (underTarget.length === 0) {
+      el.className = 'gap-banner covered';
+      el.innerHTML = `
+        <div class="gap-banner-icon">✓</div>
+        <div class="gap-banner-body"><strong>All nutrients covered today</strong>Great work — nothing urgent.</div>
+      `;
+      return;
+    }
+
+    const gaps = underTarget.map(n => {
+      const short = n.target - countNutrient(n.key);
+      return `${n.label.toLowerCase()} (${short})`;
+    });
+
+    el.className = 'gap-banner';
+    el.innerHTML = `
+      <div class="gap-banner-icon">!</div>
+      <div class="gap-banner-body">
+        <strong>Today's gaps</strong>${gaps.join(' · ')}
+      </div>
+    `;
+  }
+
+  function renderFoods() {
+    const container = document.getElementById('food-categories');
+    container.innerHTML = '';
+    const categories = [...new Set(FOODS.map(f => f.cat))];
+
+    for (const cat of categories) {
+      const catFoods = FOODS.filter(f => f.cat === cat);
+      const checkedCount = catFoods.filter(f => state.checked[f.name]).length;
+
+      const catDiv = document.createElement('div');
+      catDiv.className = 'category';
+      catDiv.innerHTML = `
+        <div class="category-header">
+          <span class="category-name">${cat}</span>
+          <span class="category-count">${checkedCount} / ${catFoods.length}</span>
+        </div>
+        <div class="foods">
+          ${catFoods.map(f => `
+            <div class="food ${state.checked[f.name] ? 'checked' : ''}" data-name="${escapeAttr(f.name)}">
+              <div class="food-check"></div>
+              <div class="food-body">
+                <div class="food-name">${escapeHtml(f.name)}</div>
+                ${f.note ? `<div class="food-note">${escapeHtml(f.note)}</div>` : ''}
+                ${f.tags.length ? `<div class="food-tags">${f.tags.map(t => `<span class="tag" data-nutrient="${t}">${NUTRIENT_MAP[t].short}</span>`).join('')}</div>` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+      container.appendChild(catDiv);
+    }
+
+    container.querySelectorAll('.food').forEach(el => {
+      el.addEventListener('click', () => {
+        const name = el.dataset.name;
+        state.checked[name] = !state.checked[name];
+        saveState();
+        render();
+      });
+    });
+  }
+
+  function renderGrocery() {
+    const list = document.getElementById('grocery-list');
+    list.innerHTML = '';
+
+    const sorted = [...state.grocery].sort((a, b) => {
+      if (a.needed !== b.needed) return a.needed ? -1 : 1;
+      return a.name.localeCompare(b.name);
+    });
+
+    if (sorted.length === 0) {
+      list.innerHTML = '<li style="padding: 1rem; text-align: center; color: var(--subtle); font-size: 0.85rem;">No items yet. Tap + Add.</li>';
+      return;
+    }
+
+    sorted.forEach(item => {
+      const li = document.createElement('li');
+      li.className = 'grocery-item ' + (item.needed ? 'needed' : 'stocked');
+      li.innerHTML = `
+        <div class="grocery-check"></div>
+        <div class="grocery-item-body">
+          <div class="grocery-item-name">${escapeHtml(item.name)}</div>
+          ${item.tags && item.tags.length ? `<div class="grocery-item-tags">${item.tags.map(t => {
+            const n = NUTRIENT_MAP[t];
+            return n ? `<span class="tag" data-nutrient="${t}">${n.short}</span>` : '';
+          }).join('')}</div>` : ''}
+        </div>
+        <div class="grocery-item-actions">
+          <button class="item-btn" data-action="delete" title="Delete">×</button>
+        </div>
+      `;
+
+      li.addEventListener('click', (e) => {
+        if (e.target.closest('[data-action="delete"]')) return;
+        item.needed = !item.needed;
+        saveState();
+        render();
+      });
+
+      li.querySelector('[data-action="delete"]').addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (confirm(`Remove "${item.name}" from list?`)) {
+          state.grocery = state.grocery.filter(g => g !== item);
+          saveState();
+          render();
+        }
+      });
+
+      list.appendChild(li);
+    });
+  }
+
+  // ===== Modal =====
+  function openNutrientModal(key) {
+    const n = NUTRIENT_MAP[key];
+    if (!n) return;
+    const modal = document.getElementById('modal');
+    const overlay = document.getElementById('modal-overlay');
+
+    const colorVar = `var(--n-${key})`;
+    modal.style.setProperty('--modal-color', colorVar);
+    modal.style.borderColor = colorVar;
+
+    document.getElementById('modal-title').textContent = n.label;
+    document.getElementById('modal-title').style.color = colorVar;
+    document.getElementById('modal-subtitle').textContent = `Target: ${n.target} food${n.target > 1 ? 's' : ''} per day`;
+
+    document.getElementById('modal-content').innerHTML = `
+      <div class="modal-section">
+        <div class="modal-section-label">What it is</div>
+        <div class="modal-section-body">${escapeHtml(n.info.what)}</div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label">Why it matters</div>
+        <div class="modal-section-body">${escapeHtml(n.info.why)}</div>
+      </div>
+      <div class="modal-section">
+        <div class="modal-section-label">Best sources</div>
+        <div class="modal-foods">
+          ${n.info.foods.map(f => `<span class="modal-food">${escapeHtml(f)}</span>`).join('')}
+        </div>
+      </div>
+    `;
+
+    overlay.classList.add('active');
+  }
+
+  function closeModal() {
+    document.getElementById('modal-overlay').classList.remove('active');
+  }
+
+  function closeModalIfOverlay(e) {
+    if (e.target === e.currentTarget) closeModal();
+  }
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeModal();
+    if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'new-item-name') {
+      addItem();
+    }
+  });
+
+  // ===== Add form =====
+  function toggleAddForm() {
+    const form = document.getElementById('add-form');
+    const isHidden = form.classList.contains('hidden');
+    if (isHidden) {
+      form.classList.remove('hidden');
+      renderTagPicker();
+      setTimeout(() => document.getElementById('new-item-name').focus(), 50);
+    } else {
+      cancelAdd();
+    }
+  }
+
+  function renderTagPicker() {
+    const picker = document.getElementById('tag-picker');
+    picker.innerHTML = '';
+    for (const n of NUTRIENTS) {
+      const btn = document.createElement('div');
+      btn.className = 'tag-pick' + (addFormTags.has(n.key) ? ' active' : '');
+      btn.setAttribute('data-nutrient', n.key);
+      btn.textContent = n.short;
+      btn.onclick = () => {
+        if (addFormTags.has(n.key)) addFormTags.delete(n.key);
+        else addFormTags.add(n.key);
+        renderTagPicker();
+      };
+      picker.appendChild(btn);
+    }
+  }
+
+  function addItem() {
+    const input = document.getElementById('new-item-name');
+    const name = input.value.trim();
+    if (!name) { input.focus(); return; }
+
+    if (state.grocery.some(g => g.name.toLowerCase() === name.toLowerCase())) {
+      alert(`"${name}" is already on your list.`);
+      return;
+    }
+
+    state.grocery.push({
+      name,
+      tags: [...addFormTags],
+      needed: true
+    });
+    saveState();
+    cancelAdd();
+    render();
+  }
+
+  function cancelAdd() {
+    document.getElementById('add-form').classList.add('hidden');
+    document.getElementById('new-item-name').value = '';
+    addFormTags.clear();
+  }
+
+  function escapeHtml(str) {
+    const div = document.createElement('div');
+    div.textContent = str;
+    return div.innerHTML;
+  }
+  function escapeAttr(str) {
+    return String(str).replace(/"/g, '&quot;');
+  }
+
+  render();
+  setInterval(() => {
+    if (state.day !== todayKey()) {
+      state.day = todayKey();
+      state.checked = {};
+      saveState();
+      render();
+    }
+  }, 60000);
+</script>
+</body>
+</html>
